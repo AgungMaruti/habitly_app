@@ -50,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Logo
                       Center(
                         child: Image.asset(
-                          'assets/images/logo.png',
+                          "assets/images/habitly_logo.png",
                           width: 100,
                           height: 100,
                           errorBuilder: (context, error, stackTrace) {

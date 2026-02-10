@@ -31,7 +31,7 @@ class _SplashScreenState extends State<SplashScreen> {
           children: [
             // Logo
             Image.asset(
-              'assets/images/logo.png',
+              "assets/images/habitly_logo.png",
               width: 150,
               height: 150,
               errorBuilder: (context, error, stackTrace) {

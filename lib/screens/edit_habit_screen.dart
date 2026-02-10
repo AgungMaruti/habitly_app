@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/colors.dart';
 import '../models/habit_model.dart';
+import '../providers/habit_provider.dart';
 
-class EditHabitScreen extends StatefulWidget {
+// ✅ StatefulWidget → ConsumerStatefulWidget
+class EditHabitScreen extends ConsumerStatefulWidget {
   const EditHabitScreen({super.key});
 
   @override
-  State<EditHabitScreen> createState() => _EditHabitScreenState();
+  ConsumerState<EditHabitScreen> createState() => _EditHabitScreenState();
 }
 
-class _EditHabitScreenState extends State<EditHabitScreen> {
+// ✅ State<EditHabitScreen> → ConsumerState<EditHabitScreen>
+class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
-  late TextEditingController _categoryController;
-  
+
   late TimeOfDay _selectedTime;
   late Habit _habit;
   bool _isInitialized = false;
-  
+
   final List<String> categories = [
     'Health',
     'Education',
@@ -29,32 +32,32 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
     'Hobby',
     'Other',
   ];
-  
+
   String? _selectedCategory;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    
+
     if (!_isInitialized) {
+      // Ambil habit dari arguments (tidak berubah)
       _habit = ModalRoute.of(context)!.settings.arguments as Habit;
       _titleController = TextEditingController(text: _habit.title);
-      _categoryController = TextEditingController(text: _habit.category);
       _selectedCategory = _habit.category;
-      
-      // Parse time
+
+      // Parse time string → TimeOfDay
       final timeParts = _habit.time.split(':');
       int hour = int.parse(timeParts[0].trim());
       final minuteParts = timeParts[1].split(' ');
       int minute = int.parse(minuteParts[0].trim());
       final period = minuteParts[1].trim();
-      
+
       if (period == 'PM' && hour != 12) {
         hour += 12;
       } else if (period == 'AM' && hour == 12) {
         hour = 0;
       }
-      
+
       _selectedTime = TimeOfDay(hour: hour, minute: minute);
       _isInitialized = true;
     }
@@ -63,7 +66,6 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
   @override
   void dispose() {
     _titleController.dispose();
-    _categoryController.dispose();
     super.dispose();
   }
 
@@ -79,7 +81,8 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
     }
   }
 
-  void _updateHabit() {
+  // ✅ PERUBAHAN UTAMA: Update langsung ke Hive via habitNotifier
+  Future<void> _updateHabit() async {
     if (_formKey.currentState!.validate()) {
       final updatedHabit = Habit(
         id: _habit.id,
@@ -88,8 +91,12 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
         time: _selectedTime.format(context),
         isCompleted: _habit.isCompleted,
       );
-      
-      Navigator.pop(context, updatedHabit);
+
+      // ✅ Update ke Hive lewat provider (bukan pop dengan return value!)
+      await ref.read(habitProvider.notifier).updateHabit(_habit.id, updatedHabit);
+
+      // ✅ Kembali ke dashboard (tanpa return value)
+      if (mounted) Navigator.pop(context);
     }
   }
 
@@ -138,7 +145,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Title Field
                 Text(
                   'Habit Title',
@@ -163,7 +170,8 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                      borderSide:
+                      const BorderSide(color: AppColors.primary, width: 2),
                     ),
                   ),
                   validator: (value) {
@@ -174,7 +182,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                   },
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Category Dropdown
                 Text(
                   'Category',
@@ -199,7 +207,8 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                      borderSide:
+                      const BorderSide(color: AppColors.primary, width: 2),
                     ),
                   ),
                   items: categories.map((String category) {
@@ -221,7 +230,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                   },
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Time Picker
                 Text(
                   'Time',
@@ -256,7 +265,7 @@ class _EditHabitScreenState extends State<EditHabitScreen> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                
+
                 // Update Button
                 ElevatedButton(
                   onPressed: _updateHabit,
