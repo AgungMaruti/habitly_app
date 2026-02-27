@@ -2,32 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/colors.dart';
 import '../models/habit_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/habit_provider.dart';
 
-class AddHabitScreen extends StatefulWidget {
+class AddHabitScreen extends ConsumerStatefulWidget {
   const AddHabitScreen({super.key});
 
   @override
-  State<AddHabitScreen> createState() => _AddHabitScreenState();
+  ConsumerState<AddHabitScreen> createState() => _AddHabitScreenState();
 }
 
-class _AddHabitScreenState extends State<AddHabitScreen> {
+class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _categoryController = TextEditingController();
   
   TimeOfDay _selectedTime = TimeOfDay.now();
-  
-  // Categories
-  final List<String> categories = [
-    'Health',
-    'Education',
-    'Mindfulness',
-    'Productivity',
-    'Social',
-    'Finance',
-    'Hobby',
-    'Other',
-  ];
   
   String? _selectedCategory;
 
@@ -50,7 +40,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
     }
   }
 
-  void _saveHabit() {
+  void _saveHabit() async {
     if (_formKey.currentState!.validate()) {
       final newHabit = Habit(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -59,8 +49,12 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
         time: _selectedTime.format(context),
         isCompleted: false,
       );
-      
-      Navigator.pop(context, newHabit);
+      final habitNotifier = ref.read(habitProvider.notifier); 
+
+      await habitNotifier.addHabit(newHabit);
+      if (mounted) {
+        Navigator.pop(context, newHabit);
+      }
     }
   }
 
@@ -173,7 +167,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                       borderSide: const BorderSide(color: AppColors.primary, width: 2),
                     ),
                   ),
-                  items: categories.map((String category) {
+                  items: habitCategories.map((String category) {
                     return DropdownMenuItem<String>(
                       value: category,
                       child: Text(category),

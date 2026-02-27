@@ -4,6 +4,18 @@ import 'package:habitly_app/models/habit_model.dart';
 
 const String habitBoxName = 'habits';
 
+// ✅ Categories centralized - satu sumber untuk semua screen
+const List<String> habitCategories = [
+  'Health',
+  'Education',
+  'Mindfulness',
+  'Productivity',
+  'Social',
+  'Finance',
+  'Hobby',
+  'Other',
+];
+
 // ✅ Riverpod v2: NotifierProvider (bukan StateNotifierProvider)
 final habitProvider = NotifierProvider<HabitNotifier, List<Habit>>(
   HabitNotifier.new,

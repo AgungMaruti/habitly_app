@@ -22,17 +22,6 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
   late Habit _habit;
   bool _isInitialized = false;
 
-  final List<String> categories = [
-    'Health',
-    'Education',
-    'Mindfulness',
-    'Productivity',
-    'Social',
-    'Finance',
-    'Hobby',
-    'Other',
-  ];
-
   String? _selectedCategory;
 
   @override
@@ -45,21 +34,36 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
       _titleController = TextEditingController(text: _habit.title);
       _selectedCategory = _habit.category;
 
-      // Parse time string → TimeOfDay
-      final timeParts = _habit.time.split(':');
-      int hour = int.parse(timeParts[0].trim());
-      final minuteParts = timeParts[1].split(' ');
-      int minute = int.parse(minuteParts[0].trim());
-      final period = minuteParts[1].trim();
-
-      if (period == 'PM' && hour != 12) {
-        hour += 12;
-      } else if (period == 'AM' && hour == 12) {
-        hour = 0;
-      }
-
-      _selectedTime = TimeOfDay(hour: hour, minute: minute);
+      // Parse time string → TimeOfDay (supports both 12h and 24h formats)
+      _selectedTime = _parseTimeString(_habit.time);
       _isInitialized = true;
+    }
+  }
+
+  // Robust time parser: supports "9:30 AM", "21:30", etc.
+  TimeOfDay _parseTimeString(String timeStr) {
+    try {
+      final parts = timeStr.split(':');
+      int hour = int.parse(parts[0].trim());
+      final minuteStr = parts[1].trim();
+
+      // Check if AM/PM is present (12-hour format)
+      if (minuteStr.contains(RegExp(r'[AaPp][Mm]'))) {
+        final minuteParts = minuteStr.split(RegExp(r'\s+'));
+        int minute = int.parse(minuteParts[0].trim());
+        final period = minuteParts[1].trim().toUpperCase();
+
+        if (period == 'PM' && hour != 12) hour += 12;
+        if (period == 'AM' && hour == 12) hour = 0;
+
+        return TimeOfDay(hour: hour, minute: minute);
+      } else {
+        // 24-hour format (e.g., "21:30")
+        return TimeOfDay(hour: hour, minute: int.parse(minuteStr));
+      }
+    } catch (_) {
+      // Fallback jika parsing gagal
+      return TimeOfDay.now();
     }
   }
 
@@ -211,7 +215,7 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
                       const BorderSide(color: AppColors.primary, width: 2),
                     ),
                   ),
-                  items: categories.map((String category) {
+                  items: habitCategories.map((String category) {
                     return DropdownMenuItem<String>(
                       value: category,
                       child: Text(category),
