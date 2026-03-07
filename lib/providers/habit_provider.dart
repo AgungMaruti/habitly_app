@@ -1,10 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:habitly_app/models/habit_model.dart';
+import 'package:habitly_app/services/firestore_service.dart';
+import 'package:habitly_app/providers/auth_provider.dart';
 
-const String habitBoxName = 'habits';
-
-// ✅ Categories centralized - satu sumber untuk semua screen
+// Categories centralized
 const List<String> habitCategories = [
   'Health',
   'Education',
@@ -16,67 +15,54 @@ const List<String> habitCategories = [
   'Other',
 ];
 
-// ✅ Riverpod v2: NotifierProvider (bukan StateNotifierProvider)
-final habitProvider = NotifierProvider<HabitNotifier, List<Habit>>(
-  HabitNotifier.new,
-);
+// Provider untuk FirestoreService instance
+final firestoreServiceProvider = Provider<FirestoreService>((ref) {
+  return FirestoreService();
+});
 
-// ✅ Riverpod v2: Notifier (bukan StateNotifier)
-class HabitNotifier extends Notifier<List<Habit>> {
+// StreamProvider: habits real-time dari Firestore (berdasarkan userId)
+final habitProvider = StreamProvider<List<Habit>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return Stream.value([]);
 
-  // ✅ build() menggantikan constructor + super([])
-  @override
-  List<Habit> build() {
-    return _loadHabits();
-  }
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  return firestoreService.getHabits(userId);
+});
 
-  // Ambil Hive Box
-  Box<Habit> get _habitBox => Hive.box<Habit>(habitBoxName);
+// Provider untuk aksi CRUD (add, update, delete, toggle)
+final habitActionsProvider = Provider<HabitActions>((ref) {
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  return HabitActions(firestoreService, userId);
+});
 
-  // READ: Load semua habits dari Hive
-  List<Habit> _loadHabits() {
-    return _habitBox.values.toList();
-  }
+class HabitActions {
+  final FirestoreService _firestoreService;
+  final String? _userId;
 
-  // CREATE: Tambah habit baru
+  HabitActions(this._firestoreService, this._userId);
+
+  // CREATE
   Future<void> addHabit(Habit habit) async {
-    await _habitBox.put(habit.id, habit);
-    state = [...state, habit];
+    if (_userId == null) return;
+    await _firestoreService.addHabit(_userId, habit);
   }
 
-  // UPDATE: Edit habit yang sudah ada
-  Future<void> updateHabit(String id, Habit updatedHabit) async {
-    await _habitBox.put(id, updatedHabit);
-    state = state.map((habit) {
-      return habit.id == id ? updatedHabit : habit;
-    }).toList();
+  // UPDATE
+  Future<void> updateHabit(String id, Habit habit) async {
+    if (_userId == null) return;
+    await _firestoreService.updateHabit(_userId, id, habit);
   }
 
-  // DELETE: Hapus habit
+  // DELETE
   Future<void> deleteHabit(String id) async {
-    await _habitBox.delete(id);
-    state = state.where((habit) => habit.id != id).toList();
+    if (_userId == null) return;
+    await _firestoreService.deleteHabit(_userId, id);
   }
 
-  // TOGGLE: Centang/uncentang habit
-  Future<void> toggleHabit(String id) async {
-    final index = state.indexWhere((habit) => habit.id == id);
-    if (index == -1) return;
-
-    final habit = state[index];
-    final updatedHabit = Habit(
-      id: habit.id,
-      title: habit.title,
-      category: habit.category,
-      time: habit.time,
-      isCompleted: !habit.isCompleted,
-    );
-
-    await _habitBox.put(id, updatedHabit);
-
-    state = [
-      for (int i = 0; i < state.length; i++)
-        if (i == index) updatedHabit else state[i]
-    ];
+  // TOGGLE
+  Future<void> toggleHabit(String id, bool currentStatus) async {
+    if (_userId == null) return;
+    await _firestoreService.toggleHabit(_userId, id, !currentStatus);
   }
 }

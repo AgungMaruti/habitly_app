@@ -5,7 +5,6 @@ import '../constants/colors.dart';
 import '../models/habit_model.dart';
 import '../providers/habit_provider.dart';
 
-// ✅ StatefulWidget → ConsumerStatefulWidget
 class EditHabitScreen extends ConsumerStatefulWidget {
   const EditHabitScreen({super.key});
 
@@ -13,15 +12,13 @@ class EditHabitScreen extends ConsumerStatefulWidget {
   ConsumerState<EditHabitScreen> createState() => _EditHabitScreenState();
 }
 
-// ✅ State<EditHabitScreen> → ConsumerState<EditHabitScreen>
 class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
-
   late TimeOfDay _selectedTime;
   late Habit _habit;
   bool _isInitialized = false;
-
+  bool _isLoading = false;
   String? _selectedCategory;
 
   @override
@@ -29,25 +26,20 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
     super.didChangeDependencies();
 
     if (!_isInitialized) {
-      // Ambil habit dari arguments (tidak berubah)
       _habit = ModalRoute.of(context)!.settings.arguments as Habit;
       _titleController = TextEditingController(text: _habit.title);
       _selectedCategory = _habit.category;
-
-      // Parse time string → TimeOfDay (supports both 12h and 24h formats)
       _selectedTime = _parseTimeString(_habit.time);
       _isInitialized = true;
     }
   }
 
-  // Robust time parser: supports "9:30 AM", "21:30", etc.
   TimeOfDay _parseTimeString(String timeStr) {
     try {
       final parts = timeStr.split(':');
       int hour = int.parse(parts[0].trim());
       final minuteStr = parts[1].trim();
 
-      // Check if AM/PM is present (12-hour format)
       if (minuteStr.contains(RegExp(r'[AaPp][Mm]'))) {
         final minuteParts = minuteStr.split(RegExp(r'\s+'));
         int minute = int.parse(minuteParts[0].trim());
@@ -58,11 +50,9 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
 
         return TimeOfDay(hour: hour, minute: minute);
       } else {
-        // 24-hour format (e.g., "21:30")
         return TimeOfDay(hour: hour, minute: int.parse(minuteStr));
       }
     } catch (_) {
-      // Fallback jika parsing gagal
       return TimeOfDay.now();
     }
   }
@@ -85,32 +75,47 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
     }
   }
 
-  // ✅ PERUBAHAN UTAMA: Update langsung ke Hive via habitNotifier
   Future<void> _updateHabit() async {
-    if (_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
       final updatedHabit = Habit(
         id: _habit.id,
         title: _titleController.text,
         category: _selectedCategory ?? 'Other',
         time: _selectedTime.format(context),
         isCompleted: _habit.isCompleted,
+        createdAt: _habit.createdAt,
       );
 
-      // ✅ Update ke Hive lewat provider (bukan pop dengan return value!)
-      await ref.read(habitProvider.notifier).updateHabit(_habit.id, updatedHabit);
+      final habitActions = ref.read(habitActionsProvider);
+      await habitActions.updateHabit(_habit.id, updatedHabit);
 
-      // ✅ Kembali ke dashboard (tanpa return value)
       if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.white),
           onPressed: () => Navigator.pop(context),
@@ -156,7 +161,7 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
                   style: GoogleFonts.urbanist(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.black,
+                    color: isDark ? AppColors.white : AppColors.black,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -170,12 +175,14 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.lightGrey),
+                      borderSide: BorderSide(
+                        color: isDark ? AppColors.darkGrey : AppColors.lightGrey,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                      const BorderSide(color: AppColors.primary, width: 2),
+                      borderSide: const BorderSide(
+                          color: AppColors.primary, width: 2),
                     ),
                   ),
                   validator: (value) {
@@ -193,12 +200,13 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
                   style: GoogleFonts.urbanist(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.black,
+                    color: isDark ? AppColors.white : AppColors.black,
                   ),
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   value: _selectedCategory,
+                  dropdownColor: isDark ? AppColors.darkCard : AppColors.white,
                   decoration: InputDecoration(
                     hintText: 'Select category',
                     prefixIcon: const Icon(Icons.category),
@@ -207,12 +215,14 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.lightGrey),
+                      borderSide: BorderSide(
+                        color: isDark ? AppColors.darkGrey : AppColors.lightGrey,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                      const BorderSide(color: AppColors.primary, width: 2),
+                      borderSide: const BorderSide(
+                          color: AppColors.primary, width: 2),
                     ),
                   ),
                   items: habitCategories.map((String category) {
@@ -241,7 +251,7 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
                   style: GoogleFonts.urbanist(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.black,
+                    color: isDark ? AppColors.white : AppColors.black,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -250,7 +260,9 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.lightGrey),
+                      border: Border.all(
+                        color: isDark ? AppColors.darkGrey : AppColors.lightGrey,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -261,7 +273,7 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
                           _selectedTime.format(context),
                           style: GoogleFonts.urbanist(
                             fontSize: 16,
-                            color: AppColors.black,
+                            color: isDark ? AppColors.white : AppColors.black,
                           ),
                         ),
                       ],
@@ -272,7 +284,7 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
 
                 // Update Button
                 ElevatedButton(
-                  onPressed: _updateHabit,
+                  onPressed: _isLoading ? null : _updateHabit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.white,
@@ -282,13 +294,22 @@ class _EditHabitScreenState extends ConsumerState<EditHabitScreen> {
                     ),
                     elevation: 0,
                   ),
-                  child: Text(
-                    'Update Habit',
-                    style: GoogleFonts.urbanist(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.white,
+                          ),
+                        )
+                      : Text(
+                          'Update Habit',
+                          style: GoogleFonts.urbanist(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ],
             ),

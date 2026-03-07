@@ -1,35 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/colors.dart';
+import '../providers/auth_provider.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Navigasi ke login setelah 3 detik
     Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
-      }
+      if (!mounted) return;
+      // Cek apakah user sudah login
+      final authState = ref.read(authStateProvider);
+      authState.when(
+        data: (user) {
+          if (user != null) {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          } else {
+            Navigator.pushReplacementNamed(context, '/login');
+          }
+        },
+        loading: () {
+          Navigator.pushReplacementNamed(context, '/login');
+        },
+        error: (_, __) {
+          Navigator.pushReplacementNamed(context, '/login');
+        },
+      );
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.lightBackground,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo
             Image.asset(
               "assets/images/habitly_logo.png",
               width: 150,
@@ -43,8 +57,6 @@ class _SplashScreenState extends State<SplashScreen> {
               },
             ),
             const SizedBox(height: 24),
-            
-            // App Name
             Text(
               'Habitly',
               style: GoogleFonts.urbanist(
@@ -54,8 +66,6 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            
-            // Tagline
             Text(
               'Keep up your Habitly',
               style: GoogleFonts.urbanist(
@@ -64,8 +74,6 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
             const SizedBox(height: 40),
-            
-            // Loading indicator
             const CircularProgressIndicator(
               color: AppColors.primary,
             ),

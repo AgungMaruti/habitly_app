@@ -15,16 +15,14 @@ class AddHabitScreen extends ConsumerStatefulWidget {
 class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
-  final _categoryController = TextEditingController();
-  
+
   TimeOfDay _selectedTime = TimeOfDay.now();
-  
   String? _selectedCategory;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _titleController.dispose();
-    _categoryController.dispose();
     super.dispose();
   }
 
@@ -40,8 +38,12 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
     }
   }
 
-  void _saveHabit() async {
-    if (_formKey.currentState!.validate()) {
+  Future<void> _saveHabit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
       final newHabit = Habit(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text,
@@ -49,22 +51,35 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
         time: _selectedTime.format(context),
         isCompleted: false,
       );
-      final habitNotifier = ref.read(habitProvider.notifier); 
 
-      await habitNotifier.addHabit(newHabit);
+      final habitActions = ref.read(habitActionsProvider);
+      await habitActions.addHabit(newHabit);
+
       if (mounted) {
-        Navigator.pop(context, newHabit);
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.white),
           onPressed: () => Navigator.pop(context),
@@ -103,14 +118,14 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Title Field
                 Text(
                   'Habit Title',
                   style: GoogleFonts.urbanist(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.black,
+                    color: isDark ? AppColors.white : AppColors.black,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -124,11 +139,14 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.lightGrey),
+                      borderSide: BorderSide(
+                        color: isDark ? AppColors.darkGrey : AppColors.lightGrey,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                      borderSide: const BorderSide(
+                          color: AppColors.primary, width: 2),
                     ),
                   ),
                   validator: (value) {
@@ -139,19 +157,20 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
                   },
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Category Dropdown
                 Text(
                   'Category',
                   style: GoogleFonts.urbanist(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.black,
+                    color: isDark ? AppColors.white : AppColors.black,
                   ),
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   value: _selectedCategory,
+                  dropdownColor: isDark ? AppColors.darkCard : AppColors.white,
                   decoration: InputDecoration(
                     hintText: 'Select category',
                     prefixIcon: const Icon(Icons.category),
@@ -160,11 +179,14 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.lightGrey),
+                      borderSide: BorderSide(
+                        color: isDark ? AppColors.darkGrey : AppColors.lightGrey,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                      borderSide: const BorderSide(
+                          color: AppColors.primary, width: 2),
                     ),
                   ),
                   items: habitCategories.map((String category) {
@@ -186,14 +208,14 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
                   },
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Time Picker
                 Text(
                   'Time',
                   style: GoogleFonts.urbanist(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.black,
+                    color: isDark ? AppColors.white : AppColors.black,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -202,7 +224,9 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.lightGrey),
+                      border: Border.all(
+                        color: isDark ? AppColors.darkGrey : AppColors.lightGrey,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -213,7 +237,7 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
                           _selectedTime.format(context),
                           style: GoogleFonts.urbanist(
                             fontSize: 16,
-                            color: AppColors.black,
+                            color: isDark ? AppColors.white : AppColors.black,
                           ),
                         ),
                       ],
@@ -221,10 +245,10 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                
+
                 // Save Button
                 ElevatedButton(
-                  onPressed: _saveHabit,
+                  onPressed: _isLoading ? null : _saveHabit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.white,
@@ -234,13 +258,22 @@ class _AddHabitScreenState extends ConsumerState<AddHabitScreen> {
                     ),
                     elevation: 0,
                   ),
-                  child: Text(
-                    'Save Habit',
-                    style: GoogleFonts.urbanist(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.white,
+                          ),
+                        )
+                      : Text(
+                          'Save Habit',
+                          style: GoogleFonts.urbanist(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ],
             ),
