@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../constants/colors.dart';
-import '../models/habit_model.dart';
+import '../domain/models/habit_model.dart';
 import '../providers/habit_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/filter_provider.dart';
 import '../providers/theme_provider.dart';
+import 'stats_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -62,6 +63,15 @@ class DashboardScreen extends ConsumerWidget {
                       : ThemeMode.dark;
             },
             tooltip: 'Toggle Dark Mode',
+          ),
+          // Stats
+          IconButton(
+            icon: const Icon(Icons.bar_chart, color: AppColors.white),
+            tooltip: 'Statistics',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const StatsScreen()),
+            ),
           ),
           // Logout
           IconButton(
